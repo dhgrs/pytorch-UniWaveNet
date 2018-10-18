@@ -75,7 +75,8 @@ class UniWaveNet(torch.nn.Module):
     def forward(self, conditions, return_all=False):
         batchsize = conditions[0].size(0)
         wave_length = conditions[0].size(2)
-        x = self._generate_random((batchsize, 1, wave_length)).to(conditions[0])
+        x = self._generate_random(
+            (batchsize, 1, wave_length)).to(conditions[0])
         generated = []
         layer_per_wavenet = len(conditions) // len(self.wavenet_list)
         for i, wavenet in enumerate(self.wavenet_list[1:]):

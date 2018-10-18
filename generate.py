@@ -1,11 +1,12 @@
 import argparse
 
-import torch
-import numpy
 import librosa
+import numpy
+import torch
 
 import params
-from net import Encoder, UniWaveNet
+from net import Encoder
+from net import UniWaveNet
 from utils import DatasetFromFolder
 
 parser = argparse.ArgumentParser()

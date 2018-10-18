@@ -1,6 +1,7 @@
+import pathlib
+
 import torch
 import tqdm
-import pathlib
 
 from utils import Trainer
 
@@ -77,7 +78,8 @@ class UniWaveNetTrainer(Trainer):
         avg_loss = 0
         with torch.no_grad():
             for batch in tqdm.tqdm(self.valid_data_loader):
-                t, spectrogram = batch[0].to(self.device), batch[1].to(self.device)
+                t, spectrogram = \
+                    batch[0].to(self.device), batch[1].to(self.device)
                 conditions = self.encoder(spectrogram)
                 xs = self.wavenet(conditions, return_all=True)
 
@@ -86,11 +88,14 @@ class UniWaveNetTrainer(Trainer):
                 log_loss = 0
                 for x in xs:
                     magnitude_loss += calc_spectrogram_loss(
-                        x, t, 'magnitude', self.loss_weights, self.loss_threshold)
+                        x, t, 'magnitude', self.loss_weights,
+                        self.loss_threshold)
                     power_loss += calc_spectrogram_loss(
-                        x, t, 'power', self.loss_weights, self.loss_threshold)
+                        x, t, 'power', self.loss_weights,
+                        self.loss_threshold)
                     log_loss += calc_spectrogram_loss(
-                        x, t, 'log', self.loss_weights, self.loss_threshold)
+                        x, t, 'log', self.loss_weights,
+                        self.loss_threshold)
 
                 if self.scale == 'magnitude':
                     loss = magnitude_loss
@@ -178,5 +183,6 @@ def calc_spectrogram_loss(x, t, scale, weights, loss_threshold=100):
     t_specs = calc_spectrograms(t, scale)
     loss = 0
     for x_spec, t_spec, weight in zip(x_specs, t_specs, weights):
-        loss += weight * torch.mean(torch.clamp(torch.abs(x_spec - t_spec), max=loss_threshold))
+        loss += weight * torch.mean(
+            torch.clamp(torch.abs(x_spec - t_spec), max=loss_threshold))
     return loss

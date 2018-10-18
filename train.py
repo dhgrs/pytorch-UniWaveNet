@@ -1,12 +1,12 @@
 import argparse
 import pathlib
 
-import tqdm
 import torch
 import tensorboardX
 
 import params
-from net import Encoder, UniWaveNet
+from net import Encoder
+from net import UniWaveNet
 from utils import DatasetFromFolder
 from trainer import UniWaveNetTrainer
 
@@ -62,8 +62,8 @@ valid_writer = tensorboardX.SummaryWriter(
 trainer = UniWaveNetTrainer(
     train_data_loader, valid_data_loader, train_writer, valid_writer,
     params.valid_iteration, params.save_iteration, device, encoder, wavenet,
-    optimizer, params.loss_weights, params.scale, params.loss_threshold, params.sr,
-    params.output_dir, params.gradient_threshold)
+    optimizer, params.loss_weights, params.scale, params.loss_threshold,
+    params.sr, params.output_dir, params.gradient_threshold)
 trainer.load_trained_encoder(args.encoder_path)
 trainer.load_trained_wavenet(args.wavenet_path)
 trainer.load_optimizer_state(args.optimizer_path)
