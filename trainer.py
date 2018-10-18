@@ -9,7 +9,7 @@ class UniWaveNetTrainer(Trainer):
     def __init__(
             self, train_data_loader, valid_data_loader, train_writer,
             valid_writer, valid_iteration, save_iteration, device, encoder,
-            wavenet, optimizer, loss_weights, change_scale_iter, sr,
+            wavenet, optimizer, loss_weights, scale, loss_threshold, sr,
             output_dir, gradient_threshold):
         super(UniWaveNetTrainer, self).__init__(
             train_data_loader, valid_data_loader, train_writer, valid_writer,
@@ -18,7 +18,8 @@ class UniWaveNetTrainer(Trainer):
         self.wavenet = wavenet
         self.optimizer = optimizer
         self.loss_weights = loss_weights
-        self.change_scale_iter = change_scale_iter
+        self.scale = scale
+        self.loss_threshold = loss_threshold
         self.sr = sr
         self.output_dir = output_dir
         self.gradient_threshold = gradient_threshold
@@ -30,19 +31,20 @@ class UniWaveNetTrainer(Trainer):
         xs = self.wavenet(conditions, return_all=True)
 
         magnitude_loss = 0
+        power_loss = 0
         log_loss = 0
         for x in xs:
             magnitude_loss += calc_spectrogram_loss(
-                x, t, 'magnitude', self.loss_weights)
+                x, t, 'magnitude', self.loss_weights, self.loss_threshold)
+            power_loss += calc_spectrogram_loss(
+                x, t, 'power', self.loss_weights, self.loss_threshold)
             log_loss += calc_spectrogram_loss(
-                x, t, 'log', self.loss_weights)
+                x, t, 'log', self.loss_weights, self.loss_threshold)
 
-        if iteration < self.change_scale_iter:
+        if self.scale == 'magnitude':
             loss = magnitude_loss
-        elif iteration < 2 * self.change_scale_iter:
-            rate = (iteration - self.change_scale_iter) / \
-                self.change_scale_iter
-            loss = (1 - rate) * magnitude_loss + rate * log_loss
+        elif self.scale == 'power':
+            loss = power_loss
         else:
             loss = log_loss
 
@@ -56,11 +58,13 @@ class UniWaveNetTrainer(Trainer):
         self.optimizer.zero_grad()
         loss.backward()
         if self.gradient_threshold is not None:
-            torch.nn.utils.clip_grad_norm(
+            torch.nn.utils.clip_grad_norm_(
                 self.wavenet.parameters(), self.gradient_threshold)
         self.optimizer.step()
         self.train_writer.add_scalar(
             'magnitude_loss', magnitude_loss.item(), iteration)
+        self.train_writer.add_scalar(
+            'power_loss', power_loss.item(), iteration)
         self.train_writer.add_scalar(
             'log_loss', log_loss.item(), iteration)
         self.train_writer.add_scalar(
@@ -68,6 +72,7 @@ class UniWaveNetTrainer(Trainer):
 
     def _valid(self, iteration):
         avg_magnitude_loss = 0
+        avg_power_loss = 0
         avg_log_loss = 0
         avg_loss = 0
         with torch.no_grad():
@@ -77,23 +82,25 @@ class UniWaveNetTrainer(Trainer):
                 xs = self.wavenet(conditions, return_all=True)
 
                 magnitude_loss = 0
+                power_loss = 0
                 log_loss = 0
                 for x in xs:
                     magnitude_loss += calc_spectrogram_loss(
-                        x, t, 'magnitude', self.loss_weights)
+                        x, t, 'magnitude', self.loss_weights, self.loss_threshold)
+                    power_loss += calc_spectrogram_loss(
+                        x, t, 'power', self.loss_weights, self.loss_threshold)
                     log_loss += calc_spectrogram_loss(
-                        x, t, 'log', self.loss_weights)
+                        x, t, 'log', self.loss_weights, self.loss_threshold)
 
-                if iteration < self.change_scale_iter:
+                if self.scale == 'magnitude':
                     loss = magnitude_loss
-                elif iteration < 2 * self.change_scale_iter:
-                    rate = (iteration - self.change_scale_iter) / \
-                        self.change_scale_iter
-                    loss = (1 - rate) * magnitude_loss + rate * log_loss
+                elif self.scale == 'power':
+                    loss = power_loss
                 else:
                     loss = log_loss
 
                 avg_magnitude_loss += magnitude_loss.item()
+                avg_power_loss += power_loss.item()
                 avg_log_loss += log_loss.item()
                 avg_loss += loss.item()
                 self.valid_writer.add_audio(
@@ -104,6 +111,9 @@ class UniWaveNetTrainer(Trainer):
                     iteration, sample_rate=self.sr)
         self.valid_writer.add_scalar(
             'magnitude_loss', avg_magnitude_loss / len(self.valid_data_loader),
+            iteration)
+        self.valid_writer.add_scalar(
+            'power_loss', avg_power_loss / len(self.valid_data_loader),
             iteration)
         self.valid_writer.add_scalar(
             'log_loss', avg_log_loss / len(self.valid_data_loader), iteration)
@@ -163,10 +173,10 @@ def calc_spectrograms(signal, scale):
     return spectrograms
 
 
-def calc_spectrogram_loss(x, t, scale, weights):
+def calc_spectrogram_loss(x, t, scale, weights, loss_threshold=100):
     x_specs = calc_spectrograms(x, scale)
     t_specs = calc_spectrograms(t, scale)
     loss = 0
     for x_spec, t_spec, weight in zip(x_specs, t_specs, weights):
-        loss = loss + weight * torch.nn.MSELoss()(x_spec, t_spec)
+        loss += weight * torch.mean(torch.clamp(torch.abs(x_spec - t_spec), max=loss_threshold))
     return loss

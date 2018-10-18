@@ -35,15 +35,9 @@ class WaveNet(torch.nn.Module):
         residual_list = []
         for loop in range(n_loops):
             for layer in range(n_layers):
-                # causal conv
                 dilation_list.append(torch.nn.Conv1d(
                     r, 2 * r, 3, 1,
-                    padding=2 * (3 ** layer), dilation=3 ** layer))
-
-                # non-causal conv
-                # dilation_list.append(torch.nn.Conv1d(
-                #     r, 2 * r, 3, 1,
-                #     padding=3 ** layer, dilation=3 ** layer))
+                    padding=3 ** layer, dilation=3 ** layer))
                 skip_list.append(torch.nn.Conv1d(
                     r, s, 1))
                 residual_list.append(torch.nn.Conv1d(
@@ -55,37 +49,17 @@ class WaveNet(torch.nn.Module):
         self.conv_out = torch.nn.Conv1d(a, 1, 1)
 
     def forward(self, x, conditions):
-        # for debug
-        if torch.isnan(x).any():
-            print('input has nan')
-        # for debug
-
         x = torch.tanh(self.conv_in(x))
-
-        # for debug
-        if torch.isnan(self.conv_in.weight).any():
-            print('weight has nan')
-        if torch.isnan(x).any():
-            print('output has nan')
-        # for debug
-
         skip_connection = 0
         for i, (dilation, skip, residual, condition) in enumerate(zip(
                 self.dilation_list, self.skip_list, self.residual_list,
                 conditions)):
-            # causal conv
-            z = dilation(x)[..., :-(dilation.padding[0])]
-
-            # non-causal conv
-            # z = dilation(x)
-
-            z = z + condition
+            z = dilation(x)
+            z += condition
             z_tanh, z_sigmoid = torch.chunk(z, 2, dim=1)
             z = torch.tanh(z_tanh) * torch.sigmoid(z_sigmoid)
-            z_skip = skip(z)
-            skip_connection = skip_connection + z_skip
-            z_residual = residual(z)
-            x = x + z_residual
+            skip_connection += skip(z)
+            x = x + residual(z)
         x = torch.nn.functional.relu(skip_connection)
         x = torch.nn.functional.relu(self.conv1x1(x))
         y = self.conv_out(x)
@@ -101,7 +75,7 @@ class UniWaveNet(torch.nn.Module):
     def forward(self, conditions, return_all=False):
         batchsize = conditions[0].size(0)
         wave_length = conditions[0].size(2)
-        x = self._generate_random((batchsize, 1, wave_length))
+        x = self._generate_random((batchsize, 1, wave_length)).to(conditions[0])
         generated = []
         layer_per_wavenet = len(conditions) // len(self.wavenet_list)
         for i, wavenet in enumerate(self.wavenet_list[1:]):
@@ -118,12 +92,7 @@ class UniWaveNet(torch.nn.Module):
         base_distribution = torch.distributions.Uniform(0, 1)
         transforms = [
             torch.distributions.transforms.SigmoidTransform().inv,
-            torch.distributions.transforms.AffineTransform(loc=0, scale=1)]
+            torch.distributions.transforms.AffineTransform(loc=0, scale=0.05)]
         logistic = torch.distributions.TransformedDistribution(
             base_distribution, transforms)
         return logistic.sample(shape)
-
-        # if torch.cuda.is_available():
-        #     return logistic.sample(shape).detach().cuda()
-        # else:
-        #     return logistic.sample(shape).detach()

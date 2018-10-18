@@ -12,8 +12,6 @@ from trainer import UniWaveNetTrainer
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--use_cuda', action='store_true', help='use cuda?')
-parser.add_argument('--threads', '-t', type=int, default=1,
-                    help='Number of threads for data loader to use')
 parser.add_argument('--start_iteration', '-i', type=int, default=1,
                     help='Start iteraion setting for using resume')
 parser.add_argument('--encoder_path', '-e', default=None,
@@ -25,7 +23,7 @@ parser.add_argument('--optimizer_path', '-o', default=None,
 args = parser.parse_args()
 
 if args.use_cuda and not torch.cuda.is_available():
-    raise Exception('No GPU found, please run without --cuda')
+    raise Exception('No GPU found, please run without --use_cuda')
 device = torch.device('cuda' if args.use_cuda else 'cpu')
 
 train_dataset = DatasetFromFolder(
@@ -64,7 +62,7 @@ valid_writer = tensorboardX.SummaryWriter(
 trainer = UniWaveNetTrainer(
     train_data_loader, valid_data_loader, train_writer, valid_writer,
     params.valid_iteration, params.save_iteration, device, encoder, wavenet,
-    optimizer, params.loss_weights, params.change_scale_iter, params.sr,
+    optimizer, params.loss_weights, params.scale, params.loss_threshold, params.sr,
     params.output_dir, params.gradient_threshold)
 trainer.load_trained_encoder(args.encoder_path)
 trainer.load_trained_wavenet(args.wavenet_path)
