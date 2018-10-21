@@ -68,4 +68,4 @@ trainer.load_trained_encoder(args.encoder_path)
 trainer.load_trained_wavenet(args.wavenet_path)
 trainer.load_optimizer_state(args.optimizer_path)
 
-trainer.run(params.n_iteration)
+trainer.run(params.n_iteration, args.start_iteration)

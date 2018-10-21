@@ -41,7 +41,7 @@ python3 train.py --use_cuda
 ```
 If you want to restart training with snapshot, use options like below.
 ```
-python3 train.py --use_cuda -e path/to/encoder.pth -w path/to/wavenet.pth -o path/to/optimizer.pth
+python3 train.py --use_cuda -e path/to/encoder.pth -w path/to/wavenet.pth -o path/to/optimizer.pth -i iteration_to_start_at
 ```
 You can use TensorBoard to visualize training. Also can listen the generated samples during training.
 
