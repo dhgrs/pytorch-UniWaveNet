@@ -46,10 +46,9 @@ class WaveNet(torch.nn.Module):
         self.skip_list = torch.nn.ModuleList(skip_list)
         self.residual_list = torch.nn.ModuleList(residual_list)
         self.conv1x1 = torch.nn.Conv1d(s, a, 1)
-        self.conv_out = torch.nn.Conv1d(a, 2, 1)
+        self.conv_out = torch.nn.Conv1d(a, 1, 1)
 
     def forward(self, x, conditions):
-        input_x = x
         x = torch.tanh(self.conv_in(x))
         skip_connection = 0
         for i, (dilation, skip, residual, condition) in enumerate(zip(
@@ -64,9 +63,7 @@ class WaveNet(torch.nn.Module):
         x = torch.nn.functional.relu(skip_connection)
         x = torch.nn.functional.relu(self.conv1x1(x))
         y = self.conv_out(x)
-        means, log_scales = torch.split(y, 2, dim=1)
-        log_scales = torch.clamp(log_scales, min=-7)
-        return means + torch.exp(log_scales) * input_x
+        return y
 
 
 class UniWaveNet(torch.nn.Module):
