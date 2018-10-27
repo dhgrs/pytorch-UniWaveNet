@@ -93,10 +93,10 @@ class UniWaveNet(torch.nn.Module):
             return x
 
     def _generate_random(self, shape):
-        base_distribution = torch.distributions.Uniform(0, 1)
+        base_distribution = torch.distributions.Uniform(0.01, 0.99)
         transforms = [
             torch.distributions.transforms.SigmoidTransform().inv,
-            torch.distributions.transforms.AffineTransform(loc=0, scale=0.05)]
+            torch.distributions.transforms.AffineTransform(loc=0, scale=1)]
         logistic = torch.distributions.TransformedDistribution(
             base_distribution, transforms)
         return logistic.sample(shape)
