@@ -46,9 +46,10 @@ class WaveNet(torch.nn.Module):
         self.skip_list = torch.nn.ModuleList(skip_list)
         self.residual_list = torch.nn.ModuleList(residual_list)
         self.conv1x1 = torch.nn.Conv1d(s, a, 1)
-        self.conv_out = torch.nn.Conv1d(a, 1, 1)
+        self.conv_out = torch.nn.Conv1d(a, 2, 1)
 
     def forward(self, x, conditions):
+        input_x = x
         x = torch.tanh(self.conv_in(x))
         if torch.isnan(self.conv_in.weight).any():
             x.data[...] = -1
@@ -65,7 +66,9 @@ class WaveNet(torch.nn.Module):
         x = torch.nn.functional.relu(skip_connection)
         x = torch.nn.functional.relu(self.conv1x1(x))
         y = self.conv_out(x)
-        return y
+        means, log_scales = torch.chunk(y, 2, dim=1)
+        log_scales = torch.clamp(log_scales, min=-7)
+        return means + torch.exp(log_scales) * input_x
 
 
 class UniWaveNet(torch.nn.Module):
@@ -92,10 +95,10 @@ class UniWaveNet(torch.nn.Module):
             return x
 
     def _generate_random(self, shape):
-        base_distribution = torch.distributions.Uniform(0, 1)
+        base_distribution = torch.distributions.Uniform(0.01, 0.99)
         transforms = [
             torch.distributions.transforms.SigmoidTransform().inv,
-            torch.distributions.transforms.AffineTransform(loc=0, scale=0.05)]
+            torch.distributions.transforms.AffineTransform(loc=0, scale=1)]
         logistic = torch.distributions.TransformedDistribution(
             base_distribution, transforms)
         return logistic.sample(shape)

@@ -31,7 +31,7 @@ class DatasetFromFolder(torch.utils.data.Dataset):
 
     def __getitem__(self, index):
         path = self.paths[index]
-        x, _ = librosa.load(path, sr=self.sr)
+        x, _ = librosa.load(str(path), sr=self.sr)
         x /= numpy.abs(x).max()
         x, _ = librosa.effects.trim(x, top_db=20)
         if len(x) <= self.length:
