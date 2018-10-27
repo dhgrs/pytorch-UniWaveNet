@@ -50,6 +50,8 @@ class WaveNet(torch.nn.Module):
 
     def forward(self, x, conditions):
         x = torch.tanh(self.conv_in(x))
+        if torch.isnan(self.conv_in.weight).any():
+            x.data[...] = -1
         skip_connection = 0
         for i, (dilation, skip, residual, condition) in enumerate(zip(
                 self.dilation_list, self.skip_list, self.residual_list,
