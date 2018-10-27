@@ -64,7 +64,7 @@ class WaveNet(torch.nn.Module):
         x = torch.nn.functional.relu(skip_connection)
         x = torch.nn.functional.relu(self.conv1x1(x))
         y = self.conv_out(x)
-        means, log_scales = torch.split(y, 2, dim=1)
+        means, log_scales = torch.chunk(y, 2, dim=1)
         log_scales = torch.clamp(log_scales, min=-7)
         return means + torch.exp(log_scales) * input_x
 
