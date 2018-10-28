@@ -34,6 +34,7 @@ class UniWaveNetTrainer(Trainer):
         magnitude_loss = 0
         power_loss = 0
         log_loss = 0
+        log1p_loss = 0
         for x in xs:
             magnitude_loss += calc_spectrogram_loss(
                 x, t, 'magnitude', self.loss_weights, self.loss_threshold)
@@ -41,13 +42,17 @@ class UniWaveNetTrainer(Trainer):
                 x, t, 'power', self.loss_weights, self.loss_threshold)
             log_loss += calc_spectrogram_loss(
                 x, t, 'log', self.loss_weights, self.loss_threshold)
+            log1p_loss += calc_spectrogram_loss(
+                x, t, 'log1p', self.loss_weights, self.loss_threshold)
 
         if self.scale == 'magnitude':
             loss = magnitude_loss
         elif self.scale == 'power':
             loss = power_loss
-        else:
+        elif self.scale == 'log':
             loss = log_loss
+        else:
+            loss = log1p_loss
 
         self.train_writer.add_audio(
             'audio/generated', torch.clamp(xs[-1][0], -1, 1), iteration,
@@ -69,12 +74,15 @@ class UniWaveNetTrainer(Trainer):
         self.train_writer.add_scalar(
             'log_loss', log_loss.item(), iteration)
         self.train_writer.add_scalar(
+            'log1p_loss', log1p_loss.item(), iteration)
+        self.train_writer.add_scalar(
             'loss', loss.item(), iteration)
 
     def _valid(self, iteration):
         avg_magnitude_loss = 0
         avg_power_loss = 0
         avg_log_loss = 0
+        avg_log1p_loss = 0
         avg_loss = 0
         with torch.no_grad():
             for batch in tqdm.tqdm(self.valid_data_loader):
@@ -86,6 +94,7 @@ class UniWaveNetTrainer(Trainer):
                 magnitude_loss = 0
                 power_loss = 0
                 log_loss = 0
+                log1p_loss = 0
                 for x in xs:
                     magnitude_loss += calc_spectrogram_loss(
                         x, t, 'magnitude', self.loss_weights,
@@ -96,17 +105,23 @@ class UniWaveNetTrainer(Trainer):
                     log_loss += calc_spectrogram_loss(
                         x, t, 'log', self.loss_weights,
                         self.loss_threshold)
+                    log1p_loss += calc_spectrogram_loss(
+                        x, t, 'log1p', self.loss_weights,
+                        self.loss_threshold)
 
                 if self.scale == 'magnitude':
                     loss = magnitude_loss
                 elif self.scale == 'power':
                     loss = power_loss
-                else:
+                elif self.scale == 'log':
                     loss = log_loss
+                else:
+                    loss = log1p_loss
 
                 avg_magnitude_loss += magnitude_loss.item()
                 avg_power_loss += power_loss.item()
                 avg_log_loss += log_loss.item()
+                avg_log1p_loss += log1p_loss.item()
                 avg_loss += loss.item()
                 self.valid_writer.add_audio(
                     'audio/generated', torch.clamp(xs[-1][0], -1, 1),
@@ -122,6 +137,8 @@ class UniWaveNetTrainer(Trainer):
             iteration)
         self.valid_writer.add_scalar(
             'log_loss', avg_log_loss / len(self.valid_data_loader), iteration)
+        self.valid_writer.add_scalar(
+            'log1p_loss', avg_log1p_loss / len(self.valid_data_loader), iteration)
         self.valid_writer.add_scalar(
             'loss', avg_loss / len(self.valid_data_loader), iteration)
 
@@ -173,6 +190,8 @@ def calc_spectrograms(signal, scale):
             spectrograms.append(torch.sqrt(power_spectrogram + 1e-10))
         elif scale == 'log':
             spectrograms.append(torch.log(power_spectrogram + 1e-10))
+        elif scale == 'log1p':
+            spectrograms.append(torch.log1p(power_spectrogram))
         else:
             print('error')
     return spectrograms
