@@ -174,10 +174,7 @@ def calc_spectrograms(signal, scale):
     for n_fft in [32, 64, 128, 256, 512, 1024, 2048, 4096]:
         hop_length = n_fft // 4
         win_length = n_fft // 2
-        if torch.cuda.is_available():
-            window = torch.hann_window(win_length).cuda()
-        else:
-            window = torch.hann_window(win_length)
+        window = torch.hann_window(win_length).to(signal)
         complex_spectrogram = torch.stft(
             signal, n_fft, hop_length, win_length, window)
         # [minibatch, frame, frequency, real/imaginary]
