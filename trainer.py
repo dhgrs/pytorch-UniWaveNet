@@ -138,7 +138,8 @@ class UniWaveNetTrainer(Trainer):
         self.valid_writer.add_scalar(
             'log_loss', avg_log_loss / len(self.valid_data_loader), iteration)
         self.valid_writer.add_scalar(
-            'log1p_loss', avg_log1p_loss / len(self.valid_data_loader), iteration)
+            'log1p_loss', avg_log1p_loss / len(self.valid_data_loader),
+            iteration)
         self.valid_writer.add_scalar(
             'loss', avg_loss / len(self.valid_data_loader), iteration)
 
