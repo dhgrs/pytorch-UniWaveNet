@@ -28,7 +28,7 @@ n_loops = 1
 a = 128
 r = 128
 s = 128
-scale = 'magnitude'
+scale = 'log1p'
 loss_weights = [0.05, 0.05, 0.05, 0.05, 0.1, 0.2, 0.2, 0.3]
 
 output_dir = \
