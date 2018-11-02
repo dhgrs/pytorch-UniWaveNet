@@ -81,7 +81,7 @@ class UniWaveNet(torch.nn.Module):
             (batchsize, 1, wave_length)).to(conditions[0])
         generated = []
         layer_per_wavenet = len(conditions) // len(self.wavenet_list)
-        for i, wavenet in enumerate(self.wavenet_list[1:]):
+        for i, wavenet in enumerate(self.wavenet_list):
             x = wavenet(
                 x,
                 conditions[i * layer_per_wavenet:(i + 1) * layer_per_wavenet])
